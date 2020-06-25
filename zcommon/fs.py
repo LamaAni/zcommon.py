@@ -70,7 +70,7 @@ def load_config_files_from_path(src_path, predict: Pattern = "config.yaml|config
 
     Args:
         src_path ([type]): The path to search the config files in.
-        predict (Pattern, optional): The pattern to match config files (json or yaml). 
+        predict (Pattern, optional): The pattern to match config files (json or yaml).
             Defaults to "config.yaml|config.yaml|config.json".
 
     Returns:

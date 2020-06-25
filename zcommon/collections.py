@@ -2,6 +2,7 @@ import os
 from typing import Dict
 from enum import Enum
 from match_pattern import Pattern
+from zcommon.serialization import DictionarySerializableMixin
 from zcommon.textops import (
     json_dump_with_types,
     json_load_with_types,
@@ -91,38 +92,6 @@ class SerializableDictFormat(StringEnum):
 
 FILE_DICT_AUTO_DETECT_PATTERNS: Dict[SerializableDictFormat, Pattern] = dict()
 FILE_DICT_AUTO_DETECT_PATTERNS[SerializableDictFormat.yaml] = Pattern("*.yml|*.yaml")
-
-
-class SerializableMixinValueError(ValueError):
-    pass
-
-
-class DictionarySerializableMixin:
-    """Mixin functions to allow object conversion to dict.
-    The result of this functions must represent the object.
-    """
-
-    _copy_on_convert = True
-
-    def __encode_as_json_object__(self):
-        return self.__to_dictionary__()
-
-    def __to_dictionary__(self):
-        """Convert the object to dictionary.
-        """
-        if isinstance(self, dict):
-            return dict(**self) if self._copy_on_convert else self
-        raise NotImplementedError()
-
-    @classmethod
-    def __from_dictionary__(cls, as_dict: dict):
-        """Convert a dictionary representation of the object to the object.
-        """
-        if issubclass(cls, dict):
-            o = cls()
-            o.update(as_dict)
-            return o
-        raise NotImplementedError()
 
 
 class JsonSerializableMixin:
@@ -250,6 +219,7 @@ class SerializableDict(dict, DictionarySerializableMixin, JsonSerializableMixin,
 class SerializeableEnvConfig(SerializableDict):
     """A serializable collection that loads keys also from os.environ.
     """
+
     def __getitem_or_env_default__(self, key, default=None):
         if key in self:
             return super().get(key)
