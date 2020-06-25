@@ -1,0 +1,121 @@
+import os
+import inspect
+import re
+from typing import List
+from src.operations.textops import Pattern, json_load_with_types, yaml_load_with_types
+
+RELATIVE_MATCH_PATTERN_OS_SEP = r"(\\|\/|$)"
+
+
+def strip_path_extention(path):
+    parts = os.path.splitext(path)
+    return parts[0]
+
+
+def is_relative_path(src: str):
+    assert isinstance(src, str), ValueError("relative_path must be a string")
+    return not (src.startswith("/") or re.match(r"[a-zA-Z]:\\", src) is not None)
+
+
+def relative_abspath(relative_path: str = ".", call_stack_offset: int = 1, root_path: str = None):
+    """Returns the relative absolute file path from the calling method.
+
+    Args:
+        fpath (str): the relative filepath. Example" "./", "./myfolder/myfile.txt". Defaults to "."
+        root_path (str, optional): If provided, will calculate the relative path from this. Default: None
+        call_stack_offset (int, optional): How much to travel back up the the calls stack.
+            For example: If 2, then would retrieve the path relative to the caller of the caller.
+            Defaults to 1.
+    """
+    assert isinstance(relative_path, str), ValueError("relative_path must be a string")
+    relative_path = relative_path.strip()
+    assert len(relative_path) > 0, ValueError("Relative path cannot be empty")
+
+    is_relative = is_relative_path(relative_path)
+
+    if is_relative:
+        stack = inspect.stack()
+        assert len(stack) > call_stack_offset, ValueError(
+            "Specified call stack offset is smaller then the size of the callstack. There is no such parent"
+        )
+
+        src_path = root_path or os.path.dirname(stack[call_stack_offset].filename)
+        src_path = os.path.abspath(src_path)
+
+        trim_text = re.match(r"^[.]" + RELATIVE_MATCH_PATTERN_OS_SEP, relative_path)
+        if trim_text is not None:
+            relative_path = relative_path[len(trim_text[0]) :]  # noqa: E203
+
+        if len(relative_path) > 0:
+            src_path = os.path.join(src_path, relative_path)
+
+        src_path = src_path.rstrip(os.sep)
+
+        return os.path.abspath(src_path)
+
+    else:
+        return os.path.abspath(relative_path)
+
+
+def scan_path(
+    src_path, predict: Pattern = "*", include_directories: bool = True, include_files: bool = True,
+) -> List[str]:
+    assert isinstance(predict, (Pattern, str)), ValueError("predict must be a string or a pattern")
+    assert os.path.exists(src_path), ValueError(f"Path dose not exist: {src_path}")
+
+    if isinstance(predict, str):
+        predict: Pattern = Pattern(predict)
+
+    rslts = []
+    for dirpath, dirnames, filenames in os.walk(src_path):
+        relative_dirname = os.path.relpath(dirpath, src_path)
+        to_match = []
+        if include_directories:
+            to_match += dirnames
+        if include_files:
+            to_match += filenames
+        for name in to_match:
+            fpath = os.path.join(relative_dirname, name).strip(os.sep)
+            if predict.test(fpath):
+                rslts.append(os.path.join(dirpath, name))
+
+    return rslts
+
+
+class LoadConfigFileInvalidException(Exception):
+    pass
+
+
+def load_config_files_from_path(src_path, predict: Pattern = "config.yaml|config.yaml|config.json"):
+    if isinstance(predict, str):
+        predict: Pattern = Pattern(predict)
+
+    config = {}
+
+    def load_config_file(fpath):
+        ext_name = fpath.split(".")[-1]
+        file_config = None
+        with open(fpath, "r") as raw:
+            if ext_name in [".yml", ".yaml"]:
+                file_config = yaml_load_with_types(raw.read())
+            else:
+                file_config = json_load_with_types(raw.read())
+
+        assert isinstance(file_config, dict), LoadConfigFileInvalidException(
+            f"File format is invalid, and should return a dictionary: {fpath}"
+        )
+
+    if os.path.isfile(src_path):
+        load_config_file(src_path)
+    else:
+        config_files = scan_path(src_path, predict, include_directories=False, include_files=True)
+        for f in config_files:
+            load_config_file(f)
+
+    return config
+
+
+if __name__ == "__main__":
+    import pytest
+
+    pytest.main(["-x", __file__[:-3] + "_test.py"])
