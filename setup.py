@@ -30,7 +30,7 @@ setup(
     packages=["zcommon"],
     platforms="any",
     license="LICENSE",
-    install_requires=["match_pattern"],
+    install_requires=["match_pattern", "pyyaml"],
     python_requires=">=3.6",
     include_package_data=True,
 )
