@@ -1,18 +1,22 @@
 import os
 import inspect
 import re
-from typing import List
-from src.operations.textops import Pattern, json_load_with_types, yaml_load_with_types
+from match_pattern import Pattern
+from zcommon.textops import json_load_with_types, yaml_load_with_types
 
 RELATIVE_MATCH_PATTERN_OS_SEP = r"(\\|\/|$)"
 
 
 def strip_path_extention(path):
+    """Remove the path file extention.
+    """
     parts = os.path.splitext(path)
     return parts[0]
 
 
 def is_relative_path(src: str):
+    """Returns true if src is a relative path.
+    """
     assert isinstance(src, str), ValueError("relative_path must be a string")
     return not (src.startswith("/") or re.match(r"[a-zA-Z]:\\", src) is not None)
 
@@ -57,36 +61,21 @@ def relative_abspath(relative_path: str = ".", call_stack_offset: int = 1, root_
         return os.path.abspath(relative_path)
 
 
-def scan_path(
-    src_path, predict: Pattern = "*", include_directories: bool = True, include_files: bool = True,
-) -> List[str]:
-    assert isinstance(predict, (Pattern, str)), ValueError("predict must be a string or a pattern")
-    assert os.path.exists(src_path), ValueError(f"Path dose not exist: {src_path}")
-
-    if isinstance(predict, str):
-        predict: Pattern = Pattern(predict)
-
-    rslts = []
-    for dirpath, dirnames, filenames in os.walk(src_path):
-        relative_dirname = os.path.relpath(dirpath, src_path)
-        to_match = []
-        if include_directories:
-            to_match += dirnames
-        if include_files:
-            to_match += filenames
-        for name in to_match:
-            fpath = os.path.join(relative_dirname, name).strip(os.sep)
-            if predict.test(fpath):
-                rslts.append(os.path.join(dirpath, name))
-
-    return rslts
-
-
 class LoadConfigFileInvalidException(Exception):
     pass
 
 
 def load_config_files_from_path(src_path, predict: Pattern = "config.yaml|config.yaml|config.json"):
+    """Loads and merges a collection of configuration files from a path.
+
+    Args:
+        src_path ([type]): The path to search the config files in.
+        predict (Pattern, optional): The pattern to match config files (json or yaml). 
+            Defaults to "config.yaml|config.yaml|config.json".
+
+    Returns:
+        dict: A merged config dictionary.
+    """
     if isinstance(predict, str):
         predict: Pattern = Pattern(predict)
 
@@ -105,10 +94,12 @@ def load_config_files_from_path(src_path, predict: Pattern = "config.yaml|config
             f"File format is invalid, and should return a dictionary: {fpath}"
         )
 
+        config.update(file_config)
+
     if os.path.isfile(src_path):
         load_config_file(src_path)
     else:
-        config_files = scan_path(src_path, predict, include_directories=False, include_files=True)
+        config_files = predict.scan_path(src_path, predict, include_directories=False, include_files=True)
         for f in config_files:
             load_config_file(f)
 

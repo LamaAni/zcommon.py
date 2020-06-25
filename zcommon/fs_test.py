@@ -1,6 +1,6 @@
 import pytest
 import os
-from src.operations import fs
+from zcommon import fs
 
 
 def test_abspath_no_relative():
@@ -16,7 +16,7 @@ def test_relative_abspath():
 
 
 def test_relative_abspath_with_folder_walk():
-    assert fs.relative_abspath("../operations") == os.path.dirname(__file__)
+    assert fs.relative_abspath("../zcommon") == os.path.dirname(__file__)
 
 
 if __name__ == "__main__":
