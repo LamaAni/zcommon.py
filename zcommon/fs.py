@@ -99,7 +99,7 @@ def load_config_files_from_path(src_path, predict: Pattern = "config.yaml|config
     if os.path.isfile(src_path):
         load_config_file(src_path)
     else:
-        config_files = predict.scan_path(src_path, predict, include_directories=False, include_files=True)
+        config_files = predict.scan_path(src_path, include_directories=False, include_files=True)
         for f in config_files:
             load_config_file(f)
 

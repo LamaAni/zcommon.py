@@ -19,5 +19,9 @@ def test_relative_abspath_with_folder_walk():
     assert fs.relative_abspath("../zcommon") == os.path.dirname(__file__)
 
 
+def test_load_config_files():
+    assert len(fs.load_config_files_from_path(fs.relative_abspath("."))) == 0
+
+
 if __name__ == "__main__":
     pytest.main(["-x", __file__])
