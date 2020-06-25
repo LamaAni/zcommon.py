@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from typing import List
 from enum import Enum
 
@@ -85,5 +86,53 @@ class CliTableFormatter:
 
         return formatted
 
+
+# endregion
+
+# region Logger
+# -------------------
+
+
+class ZCommonLogFormatter(logging.Formatter):
+    """Logging Formatter to add colors and count warning / errors"""
+
+    def __init__(self, fmt=None, datefmt=None, style="%"):
+        super().__init__(fmt, datefmt, style)
+        self.use_colors = "--no-color" not in sys.argv and os.environ.get("NOCOLOR", "").lower().strip() != "true"
+
+    formatter = logging.Formatter("[%(time_marker)s][%(level_marker)s] %(message)s")
+
+    FORMATS = {
+        logging.DEBUG: style.GRAY,
+        logging.INFO: style.WHITE,
+        logging.WARNING: style.YELLOW,
+        logging.ERROR: style.RED,
+        logging.CRITICAL: style.MAGENTA,
+    }
+
+    FORMATTERS = {}
+
+    def format(self, record):
+        level_marker: str = record.levelname
+        level_marker = level_marker.rjust(8, " ")
+        time_marker = self.formatter.formatTime(record)
+
+        if self.use_colors:
+            marker_format = self.FORMATS.get(record.levelno)
+            level_marker = marker_format(level_marker)
+            time_marker = style.GRAY(time_marker)
+        else:
+            level_marker = level_marker
+
+        record.level_marker = level_marker
+        record.time_marker = time_marker
+
+        return self.formatter.format(record)
+
+
+logger = logging.getLogger("filebase_api")
+common_stream_handler = logging.StreamHandler()
+common_stream_handler.setFormatter(ZCommonLogFormatter())
+logger.addHandler(common_stream_handler)
 
 # endregion
